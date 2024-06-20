@@ -1,65 +1,56 @@
-# ROS2-PurePursuitControl-PathPlanning-Tracking
+This README file is to narrate Assignment 2 of Introduction to Robotics Lab
 
-[en-readme](https://github.com/abdulkadrtr/ROS2-PurePursuitControl-PathPlanning-Tracking/blob/main/readme-en.md)
+In this assignment we were expected to implement a Robot Navigation system using A*, Dijkstra and RRT algorithms.
 
+My implementation is done by using ROS2 Humble;
 
-ROS2 , Turtlebot3 , A* ve PurePursuit kullanılarak oluşturulan Rota Bulma ve İzleme Uygulaması
+Prerequisites:
+- Ubuntu 22.04 (Recommended) or Ubuntu 20.04
+- ROS2 HUMBLE (Install: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
+- Slam Toolbox & Turtlebot3(Install: https://roboticsbackend.com/ros2-nav2-generate-a-map-with-slam_toolbox/)
 
+To run the code in nav_controller, follow the steps (Sometimes Errors may Occur, But let's hope not and if you encounter one of them please do not hesitate to ask as I encountered most of them :/)
 
-![Screenshot_5](https://user-images.githubusercontent.com/87595266/205762696-91c48af3-617d-4784-a1d9-ebe66400df4c.png)
+1) create a ros2 ws; (https://docs.ros.org/en/humble/Tutorials/Beginner-Client-Libraries/Creating-A-Workspace/Creating-A-Workspace.html)
 
-# V.0.1.0 Sürüm Güncellemesi | 09.02.2023
+$ source /opt/ros/humble/setup.bash
+$ mkdir -p ~/ros2_ws/src
+$ cd ~/ros2_ws
+$ colcon build
 
-![1-min](https://user-images.githubusercontent.com/87595266/217926638-2232239a-5f35-469e-829c-a2883f835bdc.gif)
-
-
-
-## Yenilikler
-
-- Pure Pursuit algoritması optimize edildi. Bu sayede rota takip optimizasyonu sağlandı.
-- Yol noktaları için B - Spline algoritması eklendi. Bu sayede yol yumuşatması sağlanarak rota takip optimizasyonu sağlandı.
-
- ![Screenshot from 2023-01-31 21-28-34](https://user-images.githubusercontent.com/87595266/217913980-c0ec9e54-0f9c-4488-8a21-2d258873a409.png)
- 
- - Costmap algoritması optimize edildi.
-
-# V.0.2.0 Sürüm Güncellemesi | 09.05.2023
-![Screenshot from 2023-05-09 12-29-40](https://user-images.githubusercontent.com/87595266/237058148-8cd753df-9058-4126-ae95-c9e28d89f006.png)
-
-- `path_follow.launch.py` dosyası eklendi. Böylece haritalama paketi ve rota takip paketi tek komutla çalıştırılabilir duruma getirildi. Ayrıca bir RVİZ2 penceresi açılarak mevcut harita ve rota görselleştirilmektedir. 
-`v.0.2.0` sürümünü kullanmak için aşağıdaki kodu çalıştırın.
-
-`ros2 launch nav_controller path_follow.launch.py`
+2) Move nav_controller to  ~/ros2_ws/src
+3) Again
+$ source install/setup.bash
+$ colcon build
 
 
-# Nasıl Çalışır
+4) Let's run simulation;
+Launch Gazebo
+If you encounter an error look like this:
+% [ERROR] [gzclient-2]: process has died [pid , exit code -6, cmd 'gzclient']. %
+then you should run or put this to ~/.bashrc:
+$ export ROS_DOMAIN_ID=30 #TURTLEBOT3
+$ . /usr/share/gazebo/setup.sh
+Then launch gazebo
+$ export TURTLEBOT3_MODEL=burger
+$ ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py 
 
-Bir gazebo simulasyon dünyası başlatın. Örneğin;
+Then launch slam toolbox:
+$ ros2 launch slam_toolbox online_async_launch.py 
 
-`export TURTLEBOT3_MODEL=burger`
+Then launch rviz2 simply;
+$ rviz2
+OR
+$ ros2 launch nav_controller path_follow.launch.py 
+(Second one initialize the rviz better)
 
+Then explore the map using;
+$ ros2 run turtlebot3_teleop teleop_keyboard 
+(As map is small this way is faster to localize the robot)
 
-`ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py`
+Then you can run;
+$ ros2 run nav_controller control 
 
-
-
-Sonrasında harita paketini çalıştırın ve haritalama işlemini gerçekleştirin.
-
-`ros2 launch slam_toolbox online_async_launch.py`
-
-PathPlannig-Tracking paketini çalıştırın.
-  
-`ros2 run nav_controller control`
-
-Sonrasında rviz2 üzerinden hedef nokta belirleyin.  
-
-# Youtube Önizleme & Kullanım Videosu  
-https://youtu.be/r_2mMyaLLaI
-
-## Gereklilikler
-
-- ROS2 - Humble
-- Slam Toolbox
-- Turtlebot3 Paketi
-- Gazebo Simulasyonu
+and after setting a target you can see the robot goes there then the map be generated.
+(RRT is not working well so, A* or Dijkstra is recommended)
 

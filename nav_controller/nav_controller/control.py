@@ -1,12 +1,14 @@
 import rclpy
 from rclpy.node import Node
 import numpy as np
+import matplotlib.pyplot as plt
 import heapq
 from nav_msgs.msg import OccupancyGrid , Odometry
 from geometry_msgs.msg import PoseStamped , Twist
 import math
 import scipy.interpolate as si
 from rclpy.qos import QoSProfile
+import random
 
 lookahead_distance = 0.15
 speed = 0.1
@@ -28,6 +30,13 @@ def euler_from_quaternion(x,y,z,w):
 def heuristic(a, b):
     return np.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
 
+
+'''
+PATH FINDING ALGORTITHMS
+'''
+'''
+ASTAR
+'''
 def astar(array, start, goal):
     neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
     close_set = set()
@@ -45,7 +54,7 @@ def astar(array, start, goal):
                 current = came_from[current]
             data = data + [start]
             data = data[::-1]
-            return data
+            return data, gscore.keys()
         close_set.add(current)
         for i, j in neighbors:
             neighbor = current[0] + i, current[1] + j
@@ -83,9 +92,140 @@ def astar(array, start, goal):
                 closest_node = came_from[closest_node]
             data = data + [start]
             data = data[::-1]
-            return data
+            return data, gscore.keys()
+    return False
+'''
+DIJKSTRA
+'''
+def dijkstra(array, start, goal):
+    neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
+    close_set = set()
+    came_from = {}
+    gscore = {start:0}
+    oheap = []
+    heapq.heappush(oheap, (0, start))  # Initial priority is 0
+    while oheap:
+        current = heapq.heappop(oheap)[1]
+        if current == goal:
+            data = []
+            while current in came_from:
+                data.append(current)
+                current = came_from[current]
+            data = data + [start]
+            data = data[::-1]
+            return data, gscore
+        close_set.add(current)
+        for i, j in neighbors:
+            neighbor = current[0] + i, current[1] + j
+            tentative_g_score = gscore[current] + 1  # Assuming each step costs 1
+            if 0 <= neighbor[0] < array.shape[0]:
+                if 0 <= neighbor[1] < array.shape[1]:                
+                    if array[neighbor[0]][neighbor[1]] == 1:
+                        continue
+                else:
+                    # array bound y walls
+                    continue
+            else:
+                # array bound x walls
+                continue
+            if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
+                continue
+            if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
+                came_from[neighbor] = current
+                gscore[neighbor] = tentative_g_score
+                heapq.heappush(oheap, (tentative_g_score, neighbor))
+    # If no path to goal was found, return closest path to goal
+    if goal not in came_from:
+        closest_node = None
+        closest_dist = float('inf')
+        for node in close_set:
+            dist = abs(node[0] - goal[0]) + abs(node[1] - goal[1])  # Manhattan distance
+            if dist < closest_dist:
+                closest_node = node
+                closest_dist = dist
+        if closest_node is not None:
+            data = []
+            while closest_node in came_from:
+                data.append(closest_node)
+                closest_node = came_from[closest_node]
+            data = data + [start]
+            data = data[::-1]
+            return data, gscore
+    return False
+'''
+RRT
+'''
+class RRTNode:
+    def __init__(self, position):
+        self.position = position
+        self.children = []
+
+def rrt(array, start, goal, max_iter=1000, step_size=1):
+    root = RRTNode(start)
+    for _ in range(max_iter):
+        random_point = np.random.randint(0, array.shape[0]), np.random.randint(0, array.shape[1])
+        nearest_node = nearest(root, random_point)
+        new_point = step_from_to(nearest_node.position, random_point, step_size)
+        if is_valid_point(array, new_point):
+            new_node = RRTNode(new_point)
+            nearest_node.children.append(new_node)
+            if np.linalg.norm(np.array(new_point) - np.array(goal)) < step_size:
+                path = backtrack(new_node, start)
+                return path
     return False
 
+def nearest(node, point):
+    min_dist = float('inf')
+    nearest_node = None
+    for child in get_descendants(node):
+        dist = np.linalg.norm(np.array(child.position) - np.array(point))
+        if dist < min_dist:
+            min_dist = dist
+            nearest_node = child
+    return nearest_node
+
+def step_from_to(p1, p2, step_size):
+    direction = np.array(p2) - np.array(p1)
+    distance = np.linalg.norm(direction)
+    if distance <= step_size:
+        return p2
+    else:
+        normalized_direction = direction / distance
+        new_point = np.array(p1) + normalized_direction * step_size
+        return tuple(new_point.astype(int))
+
+def is_valid_point(array, point):
+    x, y = point
+    if 0 <= x < array.shape[0] and 0 <= y < array.shape[1] and array[x][y] == 0:
+        return True
+    return False
+
+def backtrack(node, start):
+    path = []
+    current = node
+    while current is not None:
+        path.append(current.position)
+        current = find_parent(current)
+    path.append(start)
+    return path[::-1]
+
+def find_parent(node):
+    if len(node.children) > 0:
+        return node.children[0]
+    return None
+
+def get_descendants(node):
+    queue = [node]
+    descendants = []
+    while queue:
+        current = queue.pop(0)
+        descendants.append(current)
+        queue.extend(current.children)
+    return descendants
+
+'''
+FINISHED
+'''
 def bspline_planning(x, y, sn):
     N = 2
     t = range(len(x))
@@ -176,6 +316,21 @@ def bspline_planning(array, sn):
         path = array
     return path
 
+def visualize(data, width, height, path, discovered):
+    data = np.array(data).reshape(height,width)
+    for y, x in discovered:
+        data[y, x] = 2
+    for y, x  in path:
+        data[y, x] = 3
+
+    data[path[0][0], path[0][1]] = 4
+    data[path[-1][0], path[-1][1]] = 4
+    
+    plt.figure(figsize=(8, 6))
+    plt.imshow(data, cmap='viridis', interpolation='nearest')  # Change the colormap as needed
+    plt.title('Path Visualization')
+    plt.grid(True)
+    plt.show()
 
 class navigationControl(Node):
     def __init__(self):
@@ -186,12 +341,17 @@ class navigationControl(Node):
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
         timer_period = 0.01
         self.timer = self.create_timer(timer_period, self.timer_callback)
-        print("Hedef Bekleniyor...")
+        self.path_finder = {'astar':astar,
+                       'dijkstra':dijkstra,
+                       'rrt':rrt}
+        self.method = input('please type (astar / dijkstra / rrt):\n')
+
+        print("Please set up a target")
         self.flag = 0
 
     def goal_pose_callback(self,msg):
         self.goal = (msg.pose.position.x,msg.pose.position.y)
-        print("Hedef Konumu: ",self.goal[0],self.goal[1])
+        print("Target Location: ",self.goal[0],self.goal[1])
         self.flag = 1
 
     def listener_callback(self,msg):
@@ -204,17 +364,21 @@ class navigationControl(Node):
             columnH = int((self.goal[0]- originX)/resolution)#x,y koordinatlarından costmap indislerine çevirme
             rowH = int((self.goal[1]- originY)/resolution)#x,y koordinatlarından costmap indislerine çevirme
             data = costmap(msg.data,msg.info.width,msg.info.height,resolution) #costmap düzenleme
+            self.data = data
+            self.width = msg.info.width
+            self.height = msg.info.height
+
             data[row][column] = 0 #robot konumu
             data[data < 0] = 1 
             data[data > 5] = 1 
-            path = astar(data,(row,column),(rowH,columnH)) #astar algoritması ile yol bulma
+            path, self.discovered = self.path_finder[self.method](data,(row,column),(rowH,columnH)) #astar algoritması ile yol bulma
+            self.path1 = path
             path = [(p[1]*resolution+originX,p[0]*resolution+originY) for p in path] #x,y koordinatlarına çevirme
             self.path = bspline_planning(path,len(path)*5) #bspline ile düzeltme
-            print("Robot Konumu: ",self.x,self.y)
-            print("Hedefe ilerleniyor...")
+            print("Robot Location: ",self.x,self.y)
+            print("Moving to Target...")
             self.i = 0
             self.flag = 2
-
     def timer_callback(self):
         if self.flag == 2:
             twist = Twist()
@@ -222,11 +386,16 @@ class navigationControl(Node):
             if(abs(self.x - self.path[-1][0]) < 0.05 and abs(self.y - self.path[-1][1])< 0.05):
                 twist.linear.x = 0.0
                 twist.angular.z = 0.0
+                self.publisher.publish(twist)
                 self.flag = 0
-                print("Hedefe Ulasildi.\n")
-                print("Yeni Hedef Bekleniyor..")
-            self.publisher.publish(twist)
+                print("Target Achieved.\n")
+                visualize(self.data, self.width, self.height, self.path1, self.discovered)
 
+                self.method = input("astar or dijkstra:\n")
+                print("Please set up a new target")
+
+
+            self.publisher.publish(twist)
     def info_callback(self,msg):
         self.x = msg.pose.pose.position.x
         self.y = msg.pose.pose.position.y
