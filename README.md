@@ -1,6 +1,4 @@
-This README file is to narrate Assignment 2 of Introduction to Robotics Lab
-
-In this assignment we were expected to implement a Robot Navigation system using A*, Dijkstra and RRT algorithms.
+Implementation of a Robot Navigation system using A*, Dijkstra and RRT algorithms (RRT is not DONE).
 
 My implementation is done by using ROS2 Humble;
 
@@ -53,4 +51,17 @@ $ ros2 run nav_controller control
 
 and after setting a target you can see the robot goes there then the map be generated.
 (RRT is not working well so, A* or Dijkstra is recommended)
+
+# Sample Images:
+### Ros 2 interface
+![ROS2](ROS2.png)
+
+### A* Algorithm
+![A* Algorithm](astar.png)
+
+
+### Dijkstra Algorithm
+![Dijkstra Algorithm](dijkstra.png)
+
+
 
